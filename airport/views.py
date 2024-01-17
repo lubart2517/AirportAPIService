@@ -1,10 +1,11 @@
 import datetime
 
+from django.db.models import Q
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 
 from airport.models import (
@@ -40,6 +41,7 @@ class AirportViewSet(
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
     mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
     queryset = Airport.objects
@@ -84,6 +86,7 @@ class AirplaneViewSet(
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
     mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
     queryset = Airplane.objects
@@ -128,6 +131,7 @@ class AirplaneTypeViewSet(
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
     mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
     queryset = AirplaneType.objects
@@ -143,6 +147,7 @@ class RouteViewSet(
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
     mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
     queryset = Route.objects
@@ -189,6 +194,7 @@ class RouteViewSet(
         flights = Flight.objects.filter(route=self.get_object())
         serializer = FlightShortSerializer(flights, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
@@ -198,6 +204,7 @@ class FlightViewSet(
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
     mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
     queryset = Flight.objects
@@ -254,6 +261,43 @@ class FlightViewSet(
                 description="Filter by flight arrival day (ex. ?arrival_time.day=2024-01-22)",
             ),
         ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+
+class CrewViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = Crew.objects
+    serializer_class = CrewSerializer
+    permission_classes = (IsAdminUser, )
+
+    def get_queryset(self):
+        """Retrieve the crew with filters"""
+        contains = self.request.query_params.get("contains")
+
+        queryset = self.queryset
+
+        if contains:
+            queryset = queryset.filter(Q(first_name__icontains=contains) | Q(last_name__icontains=contains))
+
+        return queryset.distinct()
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "contains",
+                type=OpenApiTypes.STR,
+                description="Filter by crew first_name or last_name(ex. ?first_name=John or last_name=John)",
+            )
+
+                    ]
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
