@@ -51,6 +51,14 @@ class FlightSerializer(serializers.ModelSerializer):
         fields = ("route", "airplane", "departure_time", "arrival_time")
 
 
+class FlightShortSerializer(serializers.ModelSerializer):
+    airplane = AirplaneSerializer()
+
+    class Meta:
+        model = Flight
+        fields = ("airplane", "departure_time", "arrival_time")
+
+
 class CrewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Crew

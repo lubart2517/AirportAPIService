@@ -27,6 +27,7 @@ from airport.serializers import (
     AirplaneSerializer,
     RouteSerializer,
     FlightSerializer,
+    FlightShortSerializer,
     CrewSerializer,
     FlightCrewMemberSerializer,
     OrderSerializer,
@@ -177,6 +178,17 @@ class RouteViewSet(
             ),
         ]
     )
+    @action(
+        methods=["GET"],
+        detail=True,
+        url_path="flights",
+        permission_classes=[IsAuthenticated],
+    )
+    def flights(self, request, pk=None):
+        """Endpoint to view route flights"""
+        flights = Flight.objects.filter(route=self.get_object())
+        serializer = FlightShortSerializer(flights, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
