@@ -12,8 +12,16 @@ class Airport(models.Model):
 
 
 class Route(models.Model):
-    source = models.ForeignKey(Airport, on_delete=models.CASCADE, related_name='departure_routes')
-    destination = models.ForeignKey(Airport, on_delete=models.CASCADE, related_name='arrival_routes')
+    source = models.ForeignKey(
+        Airport,
+        on_delete=models.CASCADE,
+        related_name='departure_routes'
+    )
+    destination = models.ForeignKey(
+        Airport,
+        on_delete=models.CASCADE,
+        related_name='arrival_routes'
+    )
     distance = models.PositiveIntegerField()
 
     def __str__(self):
@@ -69,7 +77,10 @@ class FlightCrewMember(models.Model):
 
 class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
 
     def __str__(self):
         return str(self.user) + " " + str(self.created_at)

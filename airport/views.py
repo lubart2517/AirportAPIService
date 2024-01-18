@@ -68,6 +68,34 @@ class AirportViewSet(
 
         return queryset.distinct()
 
+    @action(
+        methods=["GET"],
+        detail=True,
+        url_path="arrivals",
+        permission_classes=[IsAuthenticated],
+    )
+    def arrivals(self, request, pk=None):
+        """Endpoint to view airport routes"""
+        arrivals = Route.objects.filter(
+            destination=self.get_object()
+        ).select_related("source", "destination")
+        serializer = RouteSerializer(arrivals, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(
+        methods=["GET"],
+        detail=True,
+        url_path="departures",
+        permission_classes=[IsAuthenticated],
+    )
+    def departures(self, request, pk=None):
+        """Endpoint to view airport routes"""
+        arrivals = Route.objects.filter(
+            source=self.get_object()
+        ).select_related("source", "destination")
+        serializer = RouteSerializer(arrivals, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     @extend_schema(
         parameters=[
             OpenApiParameter(
