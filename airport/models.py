@@ -15,12 +15,12 @@ class Route(models.Model):
     source = models.ForeignKey(
         Airport,
         on_delete=models.CASCADE,
-        related_name='departure_routes'
+        related_name="departure_routes"
     )
     destination = models.ForeignKey(
         Airport,
         on_delete=models.CASCADE,
-        related_name='arrival_routes'
+        related_name="arrival_routes"
     )
     distance = models.PositiveIntegerField()
 
@@ -107,13 +107,17 @@ class Ticket(models.Model):
             (seat, "seat", "seats_in_row"),
         ]:
             count_attrs = getattr(airplane, airplane_attr_name)
-            if not (1 <= ticket_attr_value <= count_attrs):
+            if not (
+                    1 <= ticket_attr_value <= count_attrs
+            ):
                 raise error_to_raise(
                     {
-                        ticket_attr_name: f"{ticket_attr_name} "
-                                          f"number must be in available range: "
-                                          f"(1, {airplane_attr_name}): "
-                                          f"(1, {count_attrs})"
+                        ticket_attr_name: (
+                            f"{ticket_attr_name} "
+                            f"number must be in available range: "
+                            f"(1, {airplane_attr_name}): "
+                            f"(1, {count_attrs})"
+                        )
                     }
                 )
 
@@ -138,11 +142,9 @@ class Ticket(models.Model):
         )
 
     def __str__(self):
-        return (str(self.order) + " " + str(self.flight) +
-                str(self.row) + str(self.seat))
+        return (str(self.order) + " " + str(self.flight)
+                + str(self.row) + str(self.seat))
 
     class Meta:
         unique_together = ("flight", "row", "seat")
         ordering = ["row", "seat"]
-
-

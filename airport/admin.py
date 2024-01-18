@@ -67,4 +67,3 @@ class TicketAdmin(admin.ModelAdmin):
     # Define fields to display in the admin interface here
     # Consider how to handle related fields like order, flight, etc.
     pass
-

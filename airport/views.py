@@ -216,7 +216,8 @@ class RouteViewSet(
             OpenApiParameter(
                 "destination",
                 type=OpenApiTypes.STR,
-                description="Filter by route destination (ex. ?destination=Orly)",
+                description=("Filter by route destination "
+                             "(ex. ?destination=Orly)"),
             ),
         ]
     )
@@ -371,7 +372,7 @@ class CrewViewSet(
                              "(ex. ?first_name=John or last_name=John)"),
             )
 
-                    ]
+        ]
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
@@ -422,7 +423,7 @@ class FlightCrewMemberViewSet(
                              "or crew.last_name=John)"),
             )
 
-                    ]
+        ]
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
