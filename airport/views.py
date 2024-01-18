@@ -19,8 +19,12 @@ from airport.models import (
     Flight,
     Ticket
 )
-from airport.permissions import IsAdminOrIfAuthenticatedReadOnly
-#from airport.tasks import post_create_delay
+from airport.permissions import (
+    IsAdminOrIfAuthenticatedReadOnly,
+    IsOwner,
+    IsAllowedToCreateOrAdmin
+)
+
 
 from airport.serializers import (
     AirportSerializer,
@@ -31,6 +35,7 @@ from airport.serializers import (
     FlightShortSerializer,
     CrewSerializer,
     FlightCrewMemberSerializer,
+    FlightCrewMemberShortSerializer,
     OrderSerializer,
     TicketSerializer
 )
@@ -238,6 +243,18 @@ class FlightViewSet(
 
         return queryset.distinct()
 
+    @action(
+        methods=["GET"],
+        detail=True,
+        url_path="crew_members",
+        permission_classes=[IsAdminUser],
+    )
+    def crew_members(self, request, pk=None):
+        """Endpoint to view flight crew members"""
+        crew_members = FlightCrewMember.objects.filter(flight=self.get_object())
+        serializer = FlightCrewMemberShortSerializer(crew_members, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     @extend_schema(
         parameters=[
             OpenApiParameter(
@@ -299,5 +316,73 @@ class CrewViewSet(
 
                     ]
     )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+
+class FlightCrewMemberViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = FlightCrewMember.objects
+    serializer_class = FlightCrewMemberSerializer
+    permission_classes = (IsAdminUser, )
+
+    def get_queryset(self):
+        """Retrieve the flight crew members with filters"""
+        contains = self.request.query_params.get("contains")
+
+        queryset = self.queryset
+
+        if contains:
+            queryset = queryset.filter(Q(crew__first_name__icontains=contains) | Q(crew__last_name__icontains=contains))
+
+        return queryset.distinct()
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "contains",
+                type=OpenApiTypes.STR,
+                description=("Filter by flight crew member first_name or last_name"
+                             "(ex. ?crew.first_name=John or crew.last_name=John)"),
+            )
+
+                    ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+
+class OrderViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = Order.objects
+    serializer_class = OrderSerializer
+    permission_classes = (IsOwner, IsAdminUser)
+
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+
+class TicketViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = Ticket.objects
+    serializer_class = TicketSerializer
+    permission_classes = (IsAllowedToCreateOrAdmin,)
+
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)

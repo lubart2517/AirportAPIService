@@ -74,6 +74,14 @@ class FlightCrewMemberSerializer(serializers.ModelSerializer):
         fields = ("flight", "crew")
 
 
+class FlightCrewMemberShortSerializer(serializers.ModelSerializer):
+    crew = CrewSerializer()
+
+    class Meta:
+        model = FlightCrewMember
+        fields = ("crew",)
+
+
 class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
