@@ -78,7 +78,8 @@ class AirportViewSet(
             OpenApiParameter(
                 "city",
                 type=OpenApiTypes.STR,
-                description="Filter by airport closest city (ex. ?closest_big_city=Newbie)",
+                description=("Filter by airport closest city "
+                             "(ex. ?closest_big_city=Newbie)"),
             ),
         ]
     )
@@ -94,7 +95,7 @@ class AirplaneViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    queryset = Airplane.objects
+    queryset = Airplane.objects.select_related("airplane_type")
     serializer_class = AirplaneSerializer
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly, )
 
@@ -109,7 +110,9 @@ class AirplaneViewSet(
             queryset = queryset.filter(name__icontains=name)
 
         if airplane_type:
-            queryset = queryset.filter(airplane_type__icontains=airplane_type)
+            queryset = queryset.filter(
+                airplane_type__icontains=airplane_type
+            )
 
         return queryset.distinct()
 
@@ -123,7 +126,8 @@ class AirplaneViewSet(
             OpenApiParameter(
                 "airplane_type",
                 type=OpenApiTypes.STR,
-                description="Filter by airplane type (ex. ?airplane_type=Airbus)",
+                description=("Filter by airplane type "
+                             "(ex. ?airplane_type=Airbus)"),
             ),
         ]
     )
@@ -155,7 +159,7 @@ class RouteViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    queryset = Route.objects
+    queryset = Route.objects.select_related("source", "destination")
     serializer_class = RouteSerializer
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly, )
 
@@ -196,7 +200,12 @@ class RouteViewSet(
     )
     def flights(self, request, pk=None):
         """Endpoint to view route flights"""
-        flights = Flight.objects.filter(route=self.get_object())
+        flights = Flight.objects.filter(
+            route=self.get_object()
+        ).select_related(
+            "airplane",
+            "airplane__airplane_type"
+        )
         serializer = FlightShortSerializer(flights, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -212,7 +221,13 @@ class FlightViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    queryset = Flight.objects
+    queryset = Flight.objects.select_related(
+        "route",
+        "route__source",
+        "route__destination",
+        "airplane",
+        "airplane__airplane_type"
+    )
     serializer_class = FlightSerializer
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly, )
 
@@ -231,7 +246,9 @@ class FlightViewSet(
             queryset = queryset.filter(route__source__name__icontains=source)
 
         if destination:
-            queryset = queryset.filter(route__destination__name__icontains=destination)
+            queryset = queryset.filter(
+                route__destination__name__icontains=destination
+            )
 
         if departure_day:
             day = datetime.datetime.strptime(departure_day, date_format)
@@ -251,7 +268,11 @@ class FlightViewSet(
     )
     def crew_members(self, request, pk=None):
         """Endpoint to view flight crew members"""
-        crew_members = FlightCrewMember.objects.filter(flight=self.get_object())
+        crew_members = FlightCrewMember.objects.filter(
+            flight=self.get_object()
+        ).select_related(
+            "crew"
+        )
         serializer = FlightCrewMemberShortSerializer(crew_members, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -265,17 +286,20 @@ class FlightViewSet(
             OpenApiParameter(
                 "destination",
                 type=OpenApiTypes.STR,
-                description="Filter by flight route destination (ex. ?destination=Orly)",
+                description=("Filter by flight route destination "
+                             "(ex. ?destination=Orly)"),
             ),
             OpenApiParameter(
                 "departure_day",
                 type=OpenApiTypes.STR,
-                description="Filter by flight departure day (ex. ?departure_time.day=2024-01-22)",
+                description=("Filter by flight departure day "
+                             "(ex. ?departure_time.day=2024-01-22)"),
             ),
             OpenApiParameter(
                 "arrival_day",
                 type=OpenApiTypes.STR,
-                description="Filter by flight arrival day (ex. ?arrival_time.day=2024-01-22)",
+                description=("Filter by flight arrival day "
+                             "(ex. ?arrival_time.day=2024-01-22)"),
             ),
         ]
     )
@@ -302,7 +326,11 @@ class CrewViewSet(
         queryset = self.queryset
 
         if contains:
-            queryset = queryset.filter(Q(first_name__icontains=contains) | Q(last_name__icontains=contains))
+            queryset = queryset.filter(Q(
+                first_name__icontains=contains
+            ) | Q(
+                last_name__icontains=contains
+            ))
 
         return queryset.distinct()
 
@@ -311,7 +339,8 @@ class CrewViewSet(
             OpenApiParameter(
                 "contains",
                 type=OpenApiTypes.STR,
-                description="Filter by crew first_name or last_name(ex. ?first_name=John or last_name=John)",
+                description=("Filter by crew first_name or last_name"
+                             "(ex. ?first_name=John or last_name=John)"),
             )
 
                     ]
@@ -328,7 +357,14 @@ class FlightCrewMemberViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    queryset = FlightCrewMember.objects
+    queryset = FlightCrewMember.objects.select_related(
+        "flight",
+        "flight__route__source",
+        "flight__route__destination",
+        "flight__airplane",
+        "flight__airplane__airplane_type",
+        "crew"
+    )
     serializer_class = FlightCrewMemberSerializer
     permission_classes = (IsAdminUser, )
 
@@ -339,7 +375,11 @@ class FlightCrewMemberViewSet(
         queryset = self.queryset
 
         if contains:
-            queryset = queryset.filter(Q(crew__first_name__icontains=contains) | Q(crew__last_name__icontains=contains))
+            queryset = queryset.filter(Q(
+                crew__first_name__icontains=contains
+            ) | Q(
+                crew__last_name__icontains=contains
+            ))
 
         return queryset.distinct()
 
@@ -348,8 +388,10 @@ class FlightCrewMemberViewSet(
             OpenApiParameter(
                 "contains",
                 type=OpenApiTypes.STR,
-                description=("Filter by flight crew member first_name or last_name"
-                             "(ex. ?crew.first_name=John or crew.last_name=John)"),
+                description=("Filter by flight crew member "
+                             "first_name or last_name"
+                             "(ex. ?crew.first_name=John "
+                             "or crew.last_name=John)"),
             )
 
                     ]
@@ -380,7 +422,14 @@ class TicketViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    queryset = Ticket.objects
+    queryset = Ticket.objects.select_related(
+        "order",
+        "flight",
+        "flight__route__source",
+        "flight__route__destination",
+        "flight__airplane",
+        "flight__airplane__airplane_type",
+    )
     serializer_class = TicketSerializer
     permission_classes = (IsAllowedToCreateOrAdmin,)
 
