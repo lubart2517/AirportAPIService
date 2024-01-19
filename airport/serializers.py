@@ -9,7 +9,7 @@ from airport.models import (
     Crew,
     FlightCrewMember,
     Flight,
-    Ticket
+    Ticket,
 )
 
 

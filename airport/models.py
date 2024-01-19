@@ -13,14 +13,10 @@ class Airport(models.Model):
 
 class Route(models.Model):
     source = models.ForeignKey(
-        Airport,
-        on_delete=models.CASCADE,
-        related_name="departure_routes"
+        Airport, on_delete=models.CASCADE, related_name="departure_routes"
     )
     destination = models.ForeignKey(
-        Airport,
-        on_delete=models.CASCADE,
-        related_name="arrival_routes"
+        Airport, on_delete=models.CASCADE, related_name="arrival_routes"
     )
     distance = models.PositiveIntegerField()
 
@@ -40,9 +36,7 @@ class Airplane(models.Model):
     rows = models.PositiveIntegerField()
     seats_in_row = models.PositiveIntegerField()
     airplane_type = models.ForeignKey(
-        AirplaneType,
-        on_delete=models.CASCADE,
-        related_name="airplanes"
+        AirplaneType, on_delete=models.CASCADE, related_name="airplanes"
     )
 
     def __str__(self):
@@ -78,8 +72,7 @@ class FlightCrewMember(models.Model):
 class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE
     )
 
     def __str__(self):
@@ -90,14 +83,10 @@ class Ticket(models.Model):
     row = models.PositiveIntegerField()
     seat = models.PositiveIntegerField()
     flight = models.ForeignKey(
-        Flight,
-        on_delete=models.CASCADE,
-        related_name="tickets"
+        Flight, on_delete=models.CASCADE, related_name="tickets"
     )
     order = models.ForeignKey(
-        Order,
-        on_delete=models.CASCADE,
-        related_name="tickets"
+        Order, on_delete=models.CASCADE, related_name="tickets"
     )
 
     @staticmethod
@@ -107,9 +96,7 @@ class Ticket(models.Model):
             (seat, "seat", "seats_in_row"),
         ]:
             count_attrs = getattr(airplane, airplane_attr_name)
-            if not (
-                    1 <= ticket_attr_value <= count_attrs
-            ):
+            if not (1 <= ticket_attr_value <= count_attrs):
                 raise error_to_raise(
                     {
                         ticket_attr_name: (
@@ -130,11 +117,11 @@ class Ticket(models.Model):
         )
 
     def save(
-            self,
-            force_insert=False,
-            force_update=False,
-            using=None,
-            update_fields=None,
+        self,
+        force_insert=False,
+        force_update=False,
+        using=None,
+        update_fields=None,
     ):
         self.full_clean()
         return super(Ticket, self).save(
@@ -142,8 +129,13 @@ class Ticket(models.Model):
         )
 
     def __str__(self):
-        return (str(self.order) + " " + str(self.flight)
-                + str(self.row) + str(self.seat))
+        return (
+            str(self.order)
+            + " "
+            + str(self.flight)
+            + str(self.row)
+            + str(self.seat)
+        )
 
     class Meta:
         unique_together = ("flight", "row", "seat")

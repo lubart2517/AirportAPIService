@@ -17,12 +17,12 @@ from airport.models import (
     Crew,
     FlightCrewMember,
     Flight,
-    Ticket
+    Ticket,
 )
 from airport.permissions import (
     IsAdminOrIfAuthenticatedReadOnly,
     IsOwner,
-    IsAllowedToCreateOrAdmin
+    IsAllowedToCreateOrAdmin,
 )
 
 
@@ -37,7 +37,7 @@ from airport.serializers import (
     FlightCrewMemberSerializer,
     FlightCrewMemberShortSerializer,
     OrderSerializer,
-    TicketSerializer
+    TicketSerializer,
 )
 
 
@@ -51,7 +51,7 @@ class AirportViewSet(
 ):
     queryset = Airport.objects
     serializer_class = AirportSerializer
-    permission_classes = (IsAdminOrIfAuthenticatedReadOnly, )
+    permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
     def get_queryset(self):
         """Retrieve the airports with filters"""
@@ -75,7 +75,7 @@ class AirportViewSet(
         permission_classes=[IsAuthenticated],
     )
     def arrivals(self, request, pk=None):
-        """Endpoint to view airport routes"""
+        """Endpoint to view airport arrivals"""
         arrivals = Route.objects.filter(
             destination=self.get_object()
         ).select_related("source", "destination")
@@ -89,7 +89,7 @@ class AirportViewSet(
         permission_classes=[IsAuthenticated],
     )
     def departures(self, request, pk=None):
-        """Endpoint to view airport routes"""
+        """Endpoint to view airport departures"""
         arrivals = Route.objects.filter(
             source=self.get_object()
         ).select_related("source", "destination")
@@ -106,8 +106,10 @@ class AirportViewSet(
             OpenApiParameter(
                 "city",
                 type=OpenApiTypes.STR,
-                description=("Filter by airport closest city "
-                             "(ex. ?closest_big_city=Newbie)"),
+                description=(
+                    "Filter by airport closest city "
+                    "(ex. ?closest_big_city=Newbie)"
+                ),
             ),
         ]
     )
@@ -125,7 +127,7 @@ class AirplaneViewSet(
 ):
     queryset = Airplane.objects.select_related("airplane_type")
     serializer_class = AirplaneSerializer
-    permission_classes = (IsAdminOrIfAuthenticatedReadOnly, )
+    permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
     def get_queryset(self):
         """Retrieve the airplanes with filters"""
@@ -138,9 +140,7 @@ class AirplaneViewSet(
             queryset = queryset.filter(name__icontains=name)
 
         if airplane_type:
-            queryset = queryset.filter(
-                airplane_type__icontains=airplane_type
-            )
+            queryset = queryset.filter(airplane_type__icontains=airplane_type)
 
         return queryset.distinct()
 
@@ -154,8 +154,9 @@ class AirplaneViewSet(
             OpenApiParameter(
                 "airplane_type",
                 type=OpenApiTypes.STR,
-                description=("Filter by airplane type "
-                             "(ex. ?airplane_type=Airbus)"),
+                description=(
+                    "Filter by airplane type " "(ex. ?airplane_type=Airbus)"
+                ),
             ),
         ]
     )
@@ -173,7 +174,7 @@ class AirplaneTypeViewSet(
 ):
     queryset = AirplaneType.objects
     serializer_class = AirplaneTypeSerializer
-    permission_classes = (IsAdminOrIfAuthenticatedReadOnly, )
+    permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
@@ -189,7 +190,7 @@ class RouteViewSet(
 ):
     queryset = Route.objects.select_related("source", "destination")
     serializer_class = RouteSerializer
-    permission_classes = (IsAdminOrIfAuthenticatedReadOnly, )
+    permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
     def get_queryset(self):
         """Retrieve the routes with filters"""
@@ -216,8 +217,9 @@ class RouteViewSet(
             OpenApiParameter(
                 "destination",
                 type=OpenApiTypes.STR,
-                description=("Filter by route destination "
-                             "(ex. ?destination=Orly)"),
+                description=(
+                    "Filter by route destination " "(ex. ?destination=Orly)"
+                ),
             ),
         ]
     )
@@ -231,10 +233,7 @@ class RouteViewSet(
         """Endpoint to view route flights"""
         flights = Flight.objects.filter(
             route=self.get_object()
-        ).select_related(
-            "airplane",
-            "airplane__airplane_type"
-        )
+        ).select_related("airplane", "airplane__airplane_type")
         serializer = FlightShortSerializer(flights, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -255,10 +254,10 @@ class FlightViewSet(
         "route__source",
         "route__destination",
         "airplane",
-        "airplane__airplane_type"
+        "airplane__airplane_type",
     )
     serializer_class = FlightSerializer
-    permission_classes = (IsAdminOrIfAuthenticatedReadOnly, )
+    permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
     def get_queryset(self):
         """Retrieve the flights with filters"""
@@ -299,9 +298,7 @@ class FlightViewSet(
         """Endpoint to view flight crew members"""
         crew_members = FlightCrewMember.objects.filter(
             flight=self.get_object()
-        ).select_related(
-            "crew"
-        )
+        ).select_related("crew")
         serializer = FlightCrewMemberShortSerializer(crew_members, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -315,20 +312,26 @@ class FlightViewSet(
             OpenApiParameter(
                 "destination",
                 type=OpenApiTypes.STR,
-                description=("Filter by flight route destination "
-                             "(ex. ?destination=Orly)"),
+                description=(
+                    "Filter by flight route destination "
+                    "(ex. ?destination=Orly)"
+                ),
             ),
             OpenApiParameter(
                 "departure_day",
                 type=OpenApiTypes.STR,
-                description=("Filter by flight departure day "
-                             "(ex. ?departure_time.day=2024-01-22)"),
+                description=(
+                    "Filter by flight departure day "
+                    "(ex. ?departure_time.day=2024-01-22)"
+                ),
             ),
             OpenApiParameter(
                 "arrival_day",
                 type=OpenApiTypes.STR,
-                description=("Filter by flight arrival day "
-                             "(ex. ?arrival_time.day=2024-01-22)"),
+                description=(
+                    "Filter by flight arrival day "
+                    "(ex. ?arrival_time.day=2024-01-22)"
+                ),
             ),
         ]
     )
@@ -346,7 +349,7 @@ class CrewViewSet(
 ):
     queryset = Crew.objects
     serializer_class = CrewSerializer
-    permission_classes = (IsAdminUser, )
+    permission_classes = (IsAdminUser,)
 
     def get_queryset(self):
         """Retrieve the crew with filters"""
@@ -355,11 +358,10 @@ class CrewViewSet(
         queryset = self.queryset
 
         if contains:
-            queryset = queryset.filter(Q(
-                first_name__icontains=contains
-            ) | Q(
-                last_name__icontains=contains
-            ))
+            queryset = queryset.filter(
+                Q(first_name__icontains=contains)
+                | Q(last_name__icontains=contains)
+            )
 
         return queryset.distinct()
 
@@ -368,10 +370,11 @@ class CrewViewSet(
             OpenApiParameter(
                 "contains",
                 type=OpenApiTypes.STR,
-                description=("Filter by crew first_name or last_name"
-                             "(ex. ?first_name=John or last_name=John)"),
+                description=(
+                    "Filter by crew first_name or last_name"
+                    "(ex. ?first_name=John or last_name=John)"
+                ),
             )
-
         ]
     )
     def list(self, request, *args, **kwargs):
@@ -392,10 +395,10 @@ class FlightCrewMemberViewSet(
         "flight__route__destination",
         "flight__airplane",
         "flight__airplane__airplane_type",
-        "crew"
+        "crew",
     )
     serializer_class = FlightCrewMemberSerializer
-    permission_classes = (IsAdminUser, )
+    permission_classes = (IsAdminUser,)
 
     def get_queryset(self):
         """Retrieve the flight crew members with filters"""
@@ -404,11 +407,10 @@ class FlightCrewMemberViewSet(
         queryset = self.queryset
 
         if contains:
-            queryset = queryset.filter(Q(
-                crew__first_name__icontains=contains
-            ) | Q(
-                crew__last_name__icontains=contains
-            ))
+            queryset = queryset.filter(
+                Q(crew__first_name__icontains=contains)
+                | Q(crew__last_name__icontains=contains)
+            )
 
         return queryset.distinct()
 
@@ -417,12 +419,13 @@ class FlightCrewMemberViewSet(
             OpenApiParameter(
                 "contains",
                 type=OpenApiTypes.STR,
-                description=("Filter by flight crew member "
-                             "first_name or last_name"
-                             "(ex. ?crew.first_name=John "
-                             "or crew.last_name=John)"),
+                description=(
+                    "Filter by flight crew member "
+                    "first_name or last_name"
+                    "(ex. ?crew.first_name=John "
+                    "or crew.last_name=John)"
+                ),
             )
-
         ]
     )
     def list(self, request, *args, **kwargs):

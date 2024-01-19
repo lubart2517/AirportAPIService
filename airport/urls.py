@@ -10,7 +10,7 @@ from airport.views import (
     CrewViewSet,
     FlightCrewMemberViewSet,
     OrderViewSet,
-    TicketViewSet
+    TicketViewSet,
 )
 
 

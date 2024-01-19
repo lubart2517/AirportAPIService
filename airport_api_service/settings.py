@@ -52,7 +52,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "debug_toolbar",
     "user",
-    "airport"
+    "airport",
 ]
 
 MIDDLEWARE = [
@@ -90,10 +90,11 @@ WSGI_APPLICATION = "airport_api_service.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
+
 # DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "db.sqlite3",
 #     }
 # }
 
@@ -113,20 +114,22 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": ("django.contrib.auth."
-                 "password_validation.UserAttributeSimilarityValidator"),
+        "NAME": (
+            "django.contrib.auth."
+            "password_validation.UserAttributeSimilarityValidator"
+        ),
     },
     {
         "NAME": "django.contrib.auth.pass"
-                "word_validation.MinimumLengthValidator",
+        "word_validation.MinimumLengthValidator",
     },
     {
         "NAME": "django.contrib.auth."
-                "password_validation.CommonPasswordValidator",
+        "password_validation.CommonPasswordValidator",
     },
     {
         "NAME": "django.contrib.auth."
-                "password_validation.NumericPasswordValidator",
+        "password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -190,4 +193,6 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": False,
 }
 
-INTERNAL_IPS = ["127.0.0.1", ]
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
