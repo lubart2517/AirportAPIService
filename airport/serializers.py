@@ -84,6 +84,12 @@ class CrewSerializer(serializers.ModelSerializer):
 
 
 class FlightCrewMemberSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FlightCrewMember
+        fields = ("flight", "crew")
+
+
+class FlightCrewMemberListSerializer(serializers.ModelSerializer):
     flight = FlightSerializer()
     crew = CrewSerializer()
 

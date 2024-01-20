@@ -39,6 +39,7 @@ from airport.serializers import (
     CrewSerializer,
     FlightCrewMemberSerializer,
     FlightCrewMemberShortSerializer,
+    FlightCrewMemberListSerializer,
     OrderSerializer,
     TicketSerializer,
 )
@@ -395,12 +396,7 @@ class CrewViewSet(
 
 
 class FlightCrewMemberViewSet(
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
+    viewsets.ModelViewSet,
 ):
     queryset = FlightCrewMember.objects.select_related(
         "flight",
@@ -412,6 +408,15 @@ class FlightCrewMemberViewSet(
     )
     serializer_class = FlightCrewMemberSerializer
     permission_classes = (IsAdminUser,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return FlightCrewMemberListSerializer
+
+        if self.action == "retrieve":
+            return FlightCrewMemberListSerializer
+
+        return FlightCrewMemberSerializer
 
     def get_queryset(self):
         """Retrieve the flight crew members with filters"""

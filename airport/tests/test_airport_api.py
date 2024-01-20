@@ -38,6 +38,11 @@ from airport.serializers import (
 
 AIRPORT_URL = reverse("airport:airport-list")
 ROUTE_URL = reverse("airport:route-list")
+AIRPLANETYPE_URL = reverse("airport:airplanetype-list")
+FLIGHT_URL = reverse("airport:flight-list")
+AIRPLANE_URL = reverse("airport:airplane-list")
+CREW_URL = reverse("airport:crew-list")
+FLIGHT_CREW_MEMBER_URL = reverse("airport:flightcrewmember-list")
 
 
 def sample_airport(**params):
@@ -240,9 +245,6 @@ def sample_airplane_type(**params):
     return AirplaneType.objects.create(**defaults)
 
 
-AIRPLANETYPE_URL = reverse("airport:airplanetype-list")
-
-
 class UnauthenticatedAirplaneTypeApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -338,9 +340,6 @@ def sample_airplane(**params):
     return Airplane.objects.create(**defaults)
 
 
-AIRPLANE_URL = reverse("airport:airplane-list")
-
-
 class UnauthenticatedAirplaneApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -432,9 +431,6 @@ class AdminAirplaneApiTests(TestCase):
         res = self.client.delete(url)
 
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
-
-
-FLIGHT_URL = reverse("airport:flight-list")
 
 
 def sample_flight(**params):
@@ -534,3 +530,164 @@ class AdminFlightApiTests(TestCase):
         ).first()
         serialized_flight = FlightSerializer(flight)
         self.assertEqual(response.data, serialized_flight.data)
+
+
+def sample_crew(**params):
+    defaults = {
+        "first_name": "first_name",
+        "last_name": "last_name",
+    }
+    defaults.update(params)
+
+    return Crew.objects.create(**defaults)
+
+
+class UnauthenticatedCrewApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_auth_required_for_crew_list(self):
+        response = self.client.get(CREW_URL)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AuthenticatedCrewApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "test@test.com",
+            "testpass",
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_list_crews(self):
+        sample_crew()
+        sample_crew()
+        response = self.client.get(CREW_URL)
+        crews = Crew.objects.order_by("id")
+        serializer = CrewSerializer(crews, many=True)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_retrieve_crew_detail(self):
+        new_crew = sample_crew()
+        url = reverse("airport:crew-detail", args=[new_crew.id])
+        response = self.client.get(url)
+        serializer = CrewSerializer(new_crew)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_create_crew_forbidden(self):
+        payload = {
+            "first_name": "first_name",
+            "last_name": "last_name",
+        }
+        response = self.client.post(CREW_URL, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class AdminCrewApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "admin@admin.com", "testpass", is_staff=True
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_create_crew(self):
+        payload = {
+            "first_name": "first_name",
+            "last_name": "last_name",
+        }
+        response = self.client.post(CREW_URL, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        crew = Crew.objects.filter(first_name=payload["first_name"]).first()
+        serialized_crew = CrewSerializer(crew)
+        self.assertEqual(response.data, serialized_crew.data)
+
+
+def sample_flight_crew_member(**params):
+    crew = sample_crew()
+    flight = sample_flight()
+    defaults = {
+        "crew": crew,
+        "flight": flight,
+    }
+    defaults.update(params)
+
+    return FlightCrewMember.objects.create(**defaults)
+
+
+class UnauthenticatedFlightCrewMemberApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_auth_required_for_flight_crew_member_list(self):
+        response = self.client.get(FLIGHT_CREW_MEMBER_URL)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AuthenticatedFlightCrewMemberApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "test@test.com",
+            "testpass",
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_list_flight_crew_members_forbidden(self):
+        sample_flight_crew_member()
+        sample_flight_crew_member()
+
+        response = self.client.get(FLIGHT_CREW_MEMBER_URL)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_retrieve_flight_crew_member_detail_forbidden(self):
+        new_flight_crew_member = sample_flight_crew_member()
+        url = reverse(
+            "airport:flightcrewmember-detail",
+            args=[new_flight_crew_member.id],
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_create_flight_crew_member_forbidden(self):
+        flight = sample_flight()
+        crew = sample_crew()
+        payload = {
+            "flight": flight.id,
+            "crew": crew.id,
+        }
+        response = self.client.post(FLIGHT_CREW_MEMBER_URL, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class AdminFlightCrewMemberApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "admin@admin.com", "testpass", is_staff=True
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_create_flight_crew_member(self):
+        flight = sample_flight()
+        crew = sample_crew()
+        payload = {
+            "flight": flight.id,
+            "crew": crew.id,
+        }
+        response = self.client.post(FLIGHT_CREW_MEMBER_URL, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        flight_crew_member = FlightCrewMember.objects.filter(
+            crew=payload["crew"]
+        ).first()
+        serialized_flight_crew_member = FlightCrewMemberSerializer(
+            flight_crew_member
+        )
+        self.assertEqual(response.data, serialized_flight_crew_member.data)
