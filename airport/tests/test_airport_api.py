@@ -1,9 +1,9 @@
-import tempfile
-import os
+import datetime
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -23,8 +23,11 @@ from airport.serializers import (
     AirportSerializer,
     AirplaneTypeSerializer,
     AirplaneSerializer,
+    AirplaneListSerializer,
     RouteSerializer,
+    RouteListSerializer,
     FlightSerializer,
+    FlightListSerializer,
     FlightShortSerializer,
     CrewSerializer,
     FlightCrewMemberSerializer,
@@ -33,55 +36,34 @@ from airport.serializers import (
     TicketSerializer,
 )
 
-AIRPORT_URL = reverse("airport:airports-list")
-MOVIE_SESSION_URL = reverse("cinema:moviesession-list")
+AIRPORT_URL = reverse("airport:airport-list")
+ROUTE_URL = reverse("airport:route-list")
 
 
-def sample_movie(**params):
+def sample_airport(**params):
     defaults = {
-        "title": "Sample movie",
-        "description": "Sample description",
-        "duration": 90,
+        "name": "Sample airport",
+        "closest_big_city": "Sample city",
     }
     defaults.update(params)
 
-    return Movie.objects.create(**defaults)
+    return Airport.objects.create(**defaults)
 
 
-def sample_movie_session(**params):
-    cinema_hall = CinemaHall.objects.create(
-        name="Blue", rows=20, seats_in_row=20
-    )
-
-    defaults = {
-        "show_time": "2022-06-02 14:00:00",
-        "movie": None,
-        "cinema_hall": cinema_hall,
-    }
-    defaults.update(params)
-
-    return MovieSession.objects.create(**defaults)
+def airport_detail_url(airport_id):
+    return reverse("airport:airport-detail", args=[airport_id])
 
 
-def image_upload_url(movie_id):
-    """Return URL for recipe image upload"""
-    return reverse("cinema:movie-upload-image", args=[movie_id])
-
-
-def detail_url(movie_id):
-    return reverse("cinema:movie-detail", args=[movie_id])
-
-
-class UnauthenticatedMovieApiTests(TestCase):
+class UnauthenticatedAirportApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
     def test_auth_required(self):
-        res = self.client.get(MOVIE_URL)
+        res = self.client.get(AIRPORT_URL)
         self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
-class AuthenticatedMovieApiTests(TestCase):
+class AuthenticatedAirportApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(
@@ -90,111 +72,53 @@ class AuthenticatedMovieApiTests(TestCase):
         )
         self.client.force_authenticate(self.user)
 
-    def test_list_movies(self):
-        sample_movie()
-        sample_movie()
+    def test_list_airports(self):
+        sample_airport()
+        sample_airport()
 
-        res = self.client.get(MOVIE_URL)
+        res = self.client.get(AIRPORT_URL)
 
-        movies = Movie.objects.order_by("id")
-        serializer = MovieListSerializer(movies, many=True)
+        airports = Airport.objects.order_by("id")
+        serializer = AirportSerializer(airports, many=True)
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, serializer.data)
 
-    def test_filter_movies_by_genres(self):
-        genre1 = Genre.objects.create(name="Genre 1")
-        genre2 = Genre.objects.create(name="Genre 2")
+    def test_filter_airports_by_city(self):
+        airport1 = sample_airport(closest_big_city="Paris")
+        airport2 = sample_airport(closest_big_city="London")
+        airport3 = sample_airport(closest_big_city="Lion")
 
-        movie1 = sample_movie(title="Movie 1")
-        movie2 = sample_movie(title="Movie 2")
+        res = self.client.get(AIRPORT_URL, {"city": "on"})
 
-        movie1.genres.add(genre1)
-        movie2.genres.add(genre2)
+        serializer1 = AirportSerializer(airport1)
+        serializer2 = AirportSerializer(airport2)
+        serializer3 = AirportSerializer(airport3)
 
-        movie3 = sample_movie(title="Movie without genres")
-
-        res = self.client.get(
-            MOVIE_URL, {"genres": f"{genre1.id},{genre2.id}"}
-        )
-
-        serializer1 = MovieListSerializer(movie1)
-        serializer2 = MovieListSerializer(movie2)
-        serializer3 = MovieListSerializer(movie3)
-
-        self.assertIn(serializer1.data, res.data)
+        self.assertNotIn(serializer1.data, res.data)
         self.assertIn(serializer2.data, res.data)
-        self.assertNotIn(serializer3.data, res.data)
+        self.assertIn(serializer3.data, res.data)
 
-    def test_filter_movies_by_actors(self):
-        actor1 = Actor.objects.create(
-            first_name="Actor 1", last_name="Last 1"
-        )
-        actor2 = Actor.objects.create(
-            first_name="Actor 2", last_name="Last 2"
-        )
-
-        movie1 = sample_movie(title="Movie 1")
-        movie2 = sample_movie(title="Movie 2")
-
-        movie1.actors.add(actor1)
-        movie2.actors.add(actor2)
-
-        movie3 = sample_movie(title="Movie without actors")
-
-        res = self.client.get(
-            MOVIE_URL, {"actors": f"{actor1.id},{actor2.id}"}
-        )
-
-        serializer1 = MovieListSerializer(movie1)
-        serializer2 = MovieListSerializer(movie2)
-        serializer3 = MovieListSerializer(movie3)
-
-        self.assertIn(serializer1.data, res.data)
-        self.assertIn(serializer2.data, res.data)
-        self.assertNotIn(serializer3.data, res.data)
-
-    def test_filter_movies_by_title(self):
-        movie1 = sample_movie(title="Movie")
-        movie2 = sample_movie(title="Another Movie")
-        movie3 = sample_movie(title="No match")
-
-        res = self.client.get(MOVIE_URL, {"title": "movie"})
-
-        serializer1 = MovieListSerializer(movie1)
-        serializer2 = MovieListSerializer(movie2)
-        serializer3 = MovieListSerializer(movie3)
-
-        self.assertIn(serializer1.data, res.data)
-        self.assertIn(serializer2.data, res.data)
-        self.assertNotIn(serializer3.data, res.data)
-
-    def test_retrieve_movie_detail(self):
-        movie = sample_movie()
-        movie.genres.add(Genre.objects.create(name="Genre"))
-        movie.actors.add(
-            Actor.objects.create(first_name="Actor", last_name="Last")
-        )
-
-        url = detail_url(movie.id)
+    def test_retrieve_airport_detail(self):
+        airport = sample_airport()
+        url = airport_detail_url(airport.id)
         res = self.client.get(url)
 
-        serializer = MovieDetailSerializer(movie)
+        serializer = AirportSerializer(airport)
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data, serializer.data)
 
-    def test_create_movie_forbidden(self):
+    def test_create_airport_forbidden(self):
         payload = {
-            "title": "Movie",
-            "description": "Description",
-            "duration": 90,
+            "name": "Sample airport",
+            "closest_big_city": "Sample city",
         }
-        res = self.client.post(MOVIE_URL, payload)
+        res = self.client.post(AIRPORT_URL, payload)
 
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
 
-class AdminMovieApiTests(TestCase):
+class AdminAirportApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.user = get_user_model().objects.create_user(
@@ -202,164 +126,411 @@ class AdminMovieApiTests(TestCase):
         )
         self.client.force_authenticate(self.user)
 
-    def test_create_movie(self):
+    def test_create_airport(self):
         payload = {
-            "title": "Movie",
-            "description": "Description",
-            "duration": 90,
+            "name": "Sample airport",
+            "closest_big_city": "Sample city",
         }
-        res = self.client.post(MOVIE_URL, payload)
+        res = self.client.post(AIRPORT_URL, payload)
 
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        movie = Movie.objects.get(id=res.data["id"])
+        airport = Airport.objects.filter(name=payload["name"]).first()
         for key in payload.keys():
-            self.assertEqual(payload[key], getattr(movie, key))
-
-    def test_create_movie_with_genres(self):
-        genre1 = Genre.objects.create(name="Action")
-        genre2 = Genre.objects.create(name="Adventure")
-        payload = {
-            "title": "Spider Man",
-            "genres": [genre1.id, genre2.id],
-            "description": "With Spider-Man's identity now revealed, Peter asks Doctor Strange for help.",
-            "duration": 148,
-        }
-        res = self.client.post(MOVIE_URL, payload)
-        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-
-        movie = Movie.objects.get(id=res.data["id"])
-        genres = movie.genres.all()
-        self.assertEqual(genres.count(), 2)
-        self.assertIn(genre1, genres)
-        self.assertIn(genre2, genres)
-
-    def test_create_movie_with_actors(self):
-        actor1 = Actor.objects.create(first_name="Tom", last_name="Holland")
-        actor2 = Actor.objects.create(first_name="Tobey", last_name="Maguire")
-        payload = {
-            "title": "Spider Man",
-            "actors": [actor1.id, actor2.id],
-            "description": "With Spider-Man's identity now revealed, Peter asks Doctor Strange for help.",
-            "duration": 148,
-        }
-        res = self.client.post(MOVIE_URL, payload)
-        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-
-        movie = Movie.objects.get(id=res.data["id"])
-        actors = movie.actors.all()
-        self.assertEqual(actors.count(), 2)
-        self.assertIn(actor1, actors)
-        self.assertIn(actor2, actors)
+            self.assertEqual(payload[key], getattr(airport, key))
 
 
-class MovieImageUploadTests(TestCase):
+def sample_route(**params):
+    source = Airport.objects.create(
+        name="Sample source", closest_big_city="Rome"
+    )
+
+    destination = Airport.objects.create(
+        name="Sample destination", closest_big_city="Paris"
+    )
+
+    defaults = {
+        "source": source,
+        "destination": destination,
+        "distance": 500,
+    }
+    defaults.update(params)
+
+    return Route.objects.create(**defaults)
+
+
+class UnauthenticatedRouteApiTests(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.user = get_user_model().objects.create_superuser(
-            "admin@myproject.com", "password"
+
+    def test_auth_required_for_route_list(self):
+        response = self.client.get(ROUTE_URL)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AuthenticatedRouteApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "test@test.com",
+            "testpass",
         )
         self.client.force_authenticate(self.user)
-        self.movie = sample_movie()
-        self.movie_session = sample_movie_session(movie=self.movie)
 
-    def tearDown(self):
-        self.movie.image.delete()
+    def test_list_routes(self):
+        sample_route()
+        sample_route()
 
-    def test_upload_image_to_movie(self):
-        """Test uploading an image to movie"""
-        url = image_upload_url(self.movie.id)
-        with tempfile.NamedTemporaryFile(suffix=".jpg") as ntf:
-            img = Image.new("RGB", (10, 10))
-            img.save(ntf, format="JPEG")
-            ntf.seek(0)
-            res = self.client.post(url, {"image": ntf}, format="multipart")
-        self.movie.refresh_from_db()
+        response = self.client.get(ROUTE_URL)
 
-        self.assertEqual(res.status_code, status.HTTP_200_OK)
-        self.assertIn("image", res.data)
-        self.assertTrue(os.path.exists(self.movie.image.path))
+        routes = Route.objects.order_by("id")
+        serializer = RouteListSerializer(routes, many=True)
 
-    def test_upload_image_bad_request(self):
-        """Test uploading an invalid image"""
-        url = image_upload_url(self.movie.id)
-        res = self.client.post(
-            url, {"image": "not image"}, format="multipart"
-        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, serializer.data)
 
-        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+    def test_retrieve_route_detail(self):
+        new_route = sample_route()
+        url = reverse("airport:route-detail", args=[new_route.id])
+        response = self.client.get(url)
+        serializer = RouteListSerializer(new_route)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, serializer.data)
 
-    def test_post_image_to_movie_list_should_not_work(self):
-        url = MOVIE_URL
-        with tempfile.NamedTemporaryFile(suffix=".jpg") as ntf:
-            img = Image.new("RGB", (10, 10))
-            img.save(ntf, format="JPEG")
-            ntf.seek(0)
-            res = self.client.post(
-                url,
-                {
-                    "title": "Title",
-                    "description": "Description",
-                    "duration": 90,
-                    "image": ntf,
-                },
-                format="multipart",
-            )
-
-        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
-        movie = Movie.objects.get(title="Title")
-        self.assertFalse(movie.image)
-
-    def test_image_url_is_shown_on_movie_detail(self):
-        url = image_upload_url(self.movie.id)
-        with tempfile.NamedTemporaryFile(suffix=".jpg") as ntf:
-            img = Image.new("RGB", (10, 10))
-            img.save(ntf, format="JPEG")
-            ntf.seek(0)
-            self.client.post(url, {"image": ntf}, format="multipart")
-        res = self.client.get(detail_url(self.movie.id))
-
-        self.assertIn("image", res.data)
-
-    def test_image_url_is_shown_on_movie_list(self):
-        url = image_upload_url(self.movie.id)
-        with tempfile.NamedTemporaryFile(suffix=".jpg") as ntf:
-            img = Image.new("RGB", (10, 10))
-            img.save(ntf, format="JPEG")
-            ntf.seek(0)
-            self.client.post(url, {"image": ntf}, format="multipart")
-        res = self.client.get(MOVIE_URL)
-
-        self.assertIn("image", res.data[0].keys())
-
-    def test_image_url_is_shown_on_movie_session_detail(self):
-        url = image_upload_url(self.movie.id)
-        with tempfile.NamedTemporaryFile(suffix=".jpg") as ntf:
-            img = Image.new("RGB", (10, 10))
-            img.save(ntf, format="JPEG")
-            ntf.seek(0)
-            self.client.post(url, {"image": ntf}, format="multipart")
-        res = self.client.get(MOVIE_SESSION_URL)
-
-        self.assertIn("movie_image", res.data[0].keys())
-
-    def test_put_movie_not_allowed(self):
-        payload = {
-            "title": "New movie",
-            "description": "New description",
-            "duration": 98,
+    def test_create_route_forbidden(self):
+        new_payload = {
+            "source": sample_airport().id,
+            "destination": sample_airport().id,
+            "distance": 1000,
         }
+        response = self.client.post(ROUTE_URL, new_payload)
 
-        movie = sample_movie()
-        url = detail_url(movie.id)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-        res = self.client.put(url, payload)
 
-        self.assertEqual(res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+class AdminRouteApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "admin@admin.com", "testpass", is_staff=True
+        )
+        self.client.force_authenticate(self.user)
 
-    def test_delete_movie_not_allowed(self):
-        movie = sample_movie()
-        url = detail_url(movie.id)
+    def test_create_route(self):
+        source = sample_airport()
+        destination = sample_airport()
+        payload = {
+            "source": source.id,
+            "destination": destination.id,
+            "distance": 1000,
+        }
+        response = self.client.post(ROUTE_URL, payload)
 
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        route = Route.objects.filter(distance=payload["distance"]).first()
+        serialized_route = RouteSerializer(route)
+        for key in payload.keys():
+            self.assertEqual(payload[key], serialized_route[key].value)
+
+
+def sample_airplane_type(**params):
+    defaults = {
+        "name": "airplane_type 1",
+    }
+    defaults.update(params)
+    return AirplaneType.objects.create(**defaults)
+
+
+AIRPLANETYPE_URL = reverse("airport:airplanetype-list")
+
+
+class UnauthenticatedAirplaneTypeApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_auth_required_for_airplanetype_list(self):
+        res = self.client.get(AIRPLANETYPE_URL)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AuthenticatedAirplaneTypeApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "test@test.com",
+            "testpass",
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_list_airplane_types(self):
+        AirplaneType.objects.create(name="Type 1")
+        AirplaneType.objects.create(name="Type 2")
+
+        response = self.client.get(AIRPLANETYPE_URL)
+
+        airplane_types = AirplaneType.objects.order_by("id")
+        new_serializer = AirplaneTypeSerializer(airplane_types, many=True)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, new_serializer.data)
+
+    def test_retrieve_airplane_type_detail(self):
+        airplane_type = AirplaneType.objects.create(name="Type 1")
+        url = reverse("airport:airplanetype-detail", args=[airplane_type.id])
+        response = self.client.get(url)
+
+        serializer = AirplaneTypeSerializer(airplane_type)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, serializer.data)
+
+    def test_create_airplane_type_forbidden(self):
+        new_payload = {"name": "New Type"}
+        response = self.client.post(AIRPLANETYPE_URL, new_payload)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class AdminAirplaneTypeApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "admin@admin.com", "testpass", is_staff=True
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_create_airplane_type(self):
+        payload = {"name": "New Type"}
+        res = self.client.post(AIRPLANETYPE_URL, payload)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        airplane_type = AirplaneType.objects.filter(
+            name=payload["name"]
+        ).first()
+        self.assertEqual(payload["name"], airplane_type.name)
+
+    def test_update_airplane_type(self):
+        airplane_type = AirplaneType.objects.create(name="Old Type")
+        payload = {"name": "Updated Type"}
+        url = reverse("airport:airplanetype-detail", args=[airplane_type.id])
+        response = self.client.put(url, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        airplane_type.refresh_from_db()
+        self.assertEqual(payload["name"], airplane_type.name)
+
+    def test_delete_airplanetype(self):
+        airplane_type = AirplaneType.objects.create(name="Type to Delete")
+        url = reverse("airport:airplanetype-detail", args=[airplane_type.id])
         res = self.client.delete(url)
 
-        self.assertEqual(res.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+
+
+def sample_airplane(**params):
+    airplane_type = sample_airplane_type()
+
+    defaults = {
+        "airplane_type": airplane_type,
+        "rows": 50,
+        "seats_in_row": 6,
+        "name": "Sample plane",
+    }
+    defaults.update(params)
+
+    return Airplane.objects.create(**defaults)
+
+
+AIRPLANE_URL = reverse("airport:airplane-list")
+
+
+class UnauthenticatedAirplaneApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_auth_required_for_airplane_list(self):
+        response = self.client.get(AIRPLANE_URL)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AuthenticatedAirplaneApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "test@test.com",
+            "testpass",
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_list_airplanes(self):
+        sample_airplane()
+        sample_airplane()
+
+        response = self.client.get(AIRPLANE_URL)
+
+        airplanes = Airplane.objects.order_by("id")
+        serializer = AirplaneListSerializer(airplanes, many=True)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, serializer.data)
+
+    def test_retrieve_airplane_detail(self):
+        new_airplane = sample_airplane()
+        url = reverse("airport:airplane-detail", args=[new_airplane.id])
+        response = self.client.get(url)
+        serializer = AirplaneListSerializer(new_airplane)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, serializer.data)
+
+    def test_create_airplane_forbidden(self):
+        airplane_type = sample_airplane_type()
+        payload = {
+            "name": "New Plane",
+            "rows": 50,
+            "seats_in_row": 6,
+            "airplane_type": airplane_type.id,
+        }
+        response = self.client.post(AIRPLANE_URL, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class AdminAirplaneApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "admin@admin.com", "testpass", is_staff=True
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_create_airplane(self):
+        airplane_type = sample_airplane_type()
+        payload = {
+            "name": "New Plane",
+            "rows": 50,
+            "seats_in_row": 6,
+            "airplane_type": airplane_type.id,
+        }
+        response = self.client.post(AIRPLANE_URL, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        airplane = Airplane.objects.filter(name=payload["name"]).first()
+        serialized_airplane = AirplaneSerializer(airplane)
+        for key in payload.keys():
+            self.assertEqual(payload[key], serialized_airplane[key].value)
+
+    def test_update_airplane(self):
+        airplane = sample_airplane()
+        payload = {"name": "Updated Plane"}
+        url = reverse("airport:airplane-detail", args=[airplane.id])
+        response = self.client.patch(url, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        airplane.refresh_from_db()
+        self.assertEqual(payload["name"], airplane.name)
+
+    def test_delete_airplane(self):
+        airplane = sample_airplane()
+        url = reverse("airport:airplane-detail", args=[airplane.id])
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+
+
+FLIGHT_URL = reverse("airport:flight-list")
+
+
+def sample_flight(**params):
+    route = sample_route()
+    airplane = sample_airplane()
+    departure_time = timezone.make_aware(
+        datetime.datetime.now(), timezone=timezone.get_current_timezone()
+    )
+    arrival_time = timezone.make_aware(
+        datetime.datetime.now(), timezone=timezone.get_current_timezone()
+    )
+    defaults = {
+        "route": route,
+        "airplane": airplane,
+        "departure_time": departure_time,
+        "arrival_time": arrival_time,
+    }
+    defaults.update(params)
+
+    return Flight.objects.create(**defaults)
+
+
+class UnauthenticatedFlightApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_auth_required_for_flight_list(self):
+        response = self.client.get(FLIGHT_URL)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AuthenticatedFlightApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "test@test.com",
+            "testpass",
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_list_flights(self):
+        sample_flight()
+        sample_flight()
+
+        response = self.client.get(FLIGHT_URL)
+
+        flights = Flight.objects.order_by("id")
+        serializer = FlightListSerializer(flights, many=True)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, serializer.data)
+
+    def test_retrieve_flight_detail(self):
+        new_flight = sample_flight()
+        url = reverse("airport:flight-detail", args=[new_flight.id])
+        response = self.client.get(url)
+        serializer = FlightListSerializer(new_flight)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, serializer.data)
+
+    def test_create_flight_forbidden(self):
+        route = sample_route()
+        airplane = sample_airplane()
+        payload = {
+            "route": route.id,
+            "airplane": airplane.id,
+            "departure_time": "2023-11-21T10:00:00Z",
+            "arrival_time": "2023-11-21T14:00:00Z",
+        }
+        response = self.client.post(FLIGHT_URL, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+class AdminFlightApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "admin@admin.com", "testpass", is_staff=True
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_create_flight(self):
+        route = sample_route()
+        airplane = sample_airplane()
+        payload = {
+            "route": route.id,
+            "airplane": airplane.id,
+            "departure_time": "2023-11-21T10:00:00Z",
+            "arrival_time": "2023-11-21T14:00:00Z",
+        }
+        response = self.client.post(FLIGHT_URL, payload)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        flight = Flight.objects.filter(
+            departure_time=payload["departure_time"]
+        ).first()
+        serialized_flight = FlightSerializer(flight)
+        self.assertEqual(response.data, serialized_flight.data)

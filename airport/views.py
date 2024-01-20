@@ -30,8 +30,11 @@ from airport.serializers import (
     AirportSerializer,
     AirplaneTypeSerializer,
     AirplaneSerializer,
+    AirplaneListSerializer,
     RouteSerializer,
+    RouteListSerializer,
     FlightSerializer,
+    FlightListSerializer,
     FlightShortSerializer,
     CrewSerializer,
     FlightCrewMemberSerializer,
@@ -118,16 +121,20 @@ class AirportViewSet(
 
 
 class AirplaneViewSet(
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
+    viewsets.ModelViewSet,
 ):
     queryset = Airplane.objects.select_related("airplane_type")
     serializer_class = AirplaneSerializer
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return AirplaneListSerializer
+
+        if self.action == "retrieve":
+            return AirplaneListSerializer
+
+        return AirplaneSerializer
 
     def get_queryset(self):
         """Retrieve the airplanes with filters"""
@@ -180,17 +187,19 @@ class AirplaneTypeViewSet(
         return super().list(request, *args, **kwargs)
 
 
-class RouteViewSet(
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
+class RouteViewSet(viewsets.ModelViewSet):
     queryset = Route.objects.select_related("source", "destination")
     serializer_class = RouteSerializer
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return RouteListSerializer
+
+        if self.action == "retrieve":
+            return RouteListSerializer
+
+        return RouteSerializer
 
     def get_queryset(self):
         """Retrieve the routes with filters"""
@@ -242,12 +251,7 @@ class RouteViewSet(
 
 
 class FlightViewSet(
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
+    viewsets.ModelViewSet,
 ):
     queryset = Flight.objects.select_related(
         "route",
@@ -258,6 +262,15 @@ class FlightViewSet(
     )
     serializer_class = FlightSerializer
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return FlightListSerializer
+
+        if self.action == "retrieve":
+            return FlightListSerializer
+
+        return FlightSerializer
 
     def get_queryset(self):
         """Retrieve the flights with filters"""
