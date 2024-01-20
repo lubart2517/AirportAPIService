@@ -129,7 +129,8 @@ class Ticket(models.Model):
         )
 
     def __str__(self):
-        return f"{str(self.order)} {str(self.flight)}{str(self.row)}{str(self.seat)}"
+        return (f"{str(self.order)} {str(self.flight)}"
+                f"{str(self.row)}{str(self.seat)}")
 
     class Meta:
         unique_together = ("flight", "row", "seat")
