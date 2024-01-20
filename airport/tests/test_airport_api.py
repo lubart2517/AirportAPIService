@@ -1,4 +1,5 @@
 import datetime
+import random
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -43,6 +44,7 @@ FLIGHT_URL = reverse("airport:flight-list")
 AIRPLANE_URL = reverse("airport:airplane-list")
 CREW_URL = reverse("airport:crew-list")
 FLIGHT_CREW_MEMBER_URL = reverse("airport:flightcrewmember-list")
+ORDER_URL = reverse("airport:order-list")
 
 
 def sample_airport(**params):
@@ -691,3 +693,82 @@ class AdminFlightCrewMemberApiTests(TestCase):
             flight_crew_member
         )
         self.assertEqual(response.data, serialized_flight_crew_member.data)
+
+
+def sample_order(user=None, **params):
+    created_at = timezone.make_aware(
+        datetime.datetime.now(), timezone=timezone.get_current_timezone()
+    )
+    if not user:
+        user = get_user_model().objects.create_user(
+            f"test@testuser{random.randint(1, 2000)}.com",
+            "testpass",
+        )
+    defaults = {
+        "created_at": created_at,
+        "user": user,
+    }
+    defaults.update(params)
+
+    return Order.objects.create(**defaults)
+
+
+class UnauthenticatedOrderApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_auth_required_for_order_list(self):
+        response = self.client.get(ORDER_URL)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AuthenticatedOrderApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "test@test.com",
+            "testpass",
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_list_orders_empty(self):
+        sample_order()
+        sample_order()
+
+        response = self.client.get(ORDER_URL)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_retrieve_order_detail_forbidden(self):
+        new_order = sample_order()
+        url = reverse("airport:order-detail", args=[new_order.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_retrieve_order_detail(self):
+        new_order = sample_order(user=self.user)
+        url = reverse("airport:order-detail", args=[new_order.id])
+        response = self.client.get(url)
+        serializer = OrderSerializer(new_order)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, serializer.data)
+
+    def test_create_order(self):
+        response = self.client.post(ORDER_URL)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+
+class AdminOrderApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "admin@admin.com", "testpass", is_staff=True
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_delete_order(self):
+        new_order = sample_order()
+        url = reverse("airport:order-detail", args=[new_order.id])
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)

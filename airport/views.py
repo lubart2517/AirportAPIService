@@ -21,7 +21,6 @@ from airport.models import (
 )
 from airport.permissions import (
     IsAdminOrIfAuthenticatedReadOnly,
-    IsOwner,
     IsAllowedToCreateOrAdmin,
 )
 
@@ -459,10 +458,17 @@ class OrderViewSet(
 ):
     queryset = Order.objects
     serializer_class = OrderSerializer
-    permission_classes = (IsOwner, IsAdminUser)
+    permission_classes = (IsAllowedToCreateOrAdmin,)
 
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        if request.user.is_staff:
+            return super().list(request, *args, **kwargs)
+        else:
+            self.queryset = Order.objects.filter(user=request.user)
+            return super().list(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 class TicketViewSet(

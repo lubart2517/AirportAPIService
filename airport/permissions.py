@@ -13,22 +13,18 @@ class IsAdminOrIfAuthenticatedReadOnly(BasePermission):
         )
 
 
-class IsOwner(BasePermission):
+class IsAllowedToCreateOrAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return bool(request.user.is_authenticated)
+
     def has_object_permission(self, request, view, obj):
         """
         Return `True` if permission is granted, `False` otherwise.
         """
-        return bool(request.user and obj.user == request.user)
-
-
-class IsAllowedToCreateOrAdmin(BasePermission):
-    def has_permission(self, request, view):
-        safe_methods_with_create = ("GET", "HEAD", "OPTIONS", "CREATE")
-        return bool(
-            (
-                request.method in safe_methods_with_create
-                and request.user
-                and request.user.is_authenticated
+        if request.method == "POST":
+            return bool(request.user)
+        else:
+            return bool(
+                request.user
+                and (obj.user == request.user or request.user.is_staff)
             )
-            or (request.user and request.user.is_staff)
-        )

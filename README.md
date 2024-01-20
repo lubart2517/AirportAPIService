@@ -22,6 +22,8 @@ set POSTGRES_USER=<your db username>
 set POSTGRES_PASSWORD=<your db user password>
 Set a secret key: set SECRET_KEY=<your secret key>
 
+To use sqlite db, uncomment sqlite db config in settings and comment postgres
+
 Run database migrations: python manage.py migrate
 Start the development server: python manage.py runserver
 

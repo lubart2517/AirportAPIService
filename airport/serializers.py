@@ -109,7 +109,7 @@ class FlightCrewMemberShortSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
-        fields = ("created_at", "user")
+        fields = ("created_at",)
 
 
 class TicketSerializer(serializers.ModelSerializer):
