@@ -21,7 +21,7 @@ class Route(models.Model):
     distance = models.PositiveIntegerField()
 
     def __str__(self):
-        return self.source.name + " " + self.destination.name
+        return f"{self.source.name} {self.destination.name}"
 
 
 class AirplaneType(models.Model):
@@ -50,7 +50,7 @@ class Flight(models.Model):
     arrival_time = models.DateTimeField()
 
     def __str__(self):
-        return str(self.route) + str(self.airplane)
+        return f"{str(self.route)} {str(self.airplane)}"
 
 
 class Crew(models.Model):
@@ -58,7 +58,7 @@ class Crew(models.Model):
     last_name = models.CharField(max_length=255)
 
     def __str__(self):
-        return str(self.first_name) + " " + str(self.last_name)
+        return f"{str(self.first_name)} {str(self.last_name)}"
 
 
 class FlightCrewMember(models.Model):
@@ -66,7 +66,7 @@ class FlightCrewMember(models.Model):
     crew = models.ForeignKey(Crew, on_delete=models.CASCADE)
 
     def __str__(self):
-        return str(self.crew) + " " + str(self.flight)
+        return f"{str(self.crew)} {str(self.flight)}"
 
 
 class Order(models.Model):
@@ -76,7 +76,7 @@ class Order(models.Model):
     )
 
     def __str__(self):
-        return str(self.user) + " " + str(self.created_at)
+        return f"{str(self.user)} {str(self.created_at)}"
 
 
 class Ticket(models.Model):
@@ -129,13 +129,7 @@ class Ticket(models.Model):
         )
 
     def __str__(self):
-        return (
-            str(self.order)
-            + " "
-            + str(self.flight)
-            + str(self.row)
-            + str(self.seat)
-        )
+        return f"{str(self.order)} {str(self.flight)}{str(self.row)}{str(self.seat)}"
 
     class Meta:
         unique_together = ("flight", "row", "seat")
