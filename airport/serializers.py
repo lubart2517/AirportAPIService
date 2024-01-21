@@ -113,6 +113,12 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class TicketSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ticket
+        fields = ("row", "seat", "flight", "order")
+
+
+class TicketListSerializer(serializers.ModelSerializer):
     flight = FlightSerializer()
     order = OrderSerializer()
 

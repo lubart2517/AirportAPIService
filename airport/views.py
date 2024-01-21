@@ -41,6 +41,7 @@ from airport.serializers import (
     FlightCrewMemberListSerializer,
     OrderSerializer,
     TicketSerializer,
+    TicketListSerializer,
 )
 
 
@@ -489,5 +490,18 @@ class TicketViewSet(
     serializer_class = TicketSerializer
     permission_classes = (IsAllowedToCreateOrAdmin,)
 
+    def get_serializer_class(self):
+        if self.action == "list":
+            return TicketListSerializer
+
+        if self.action == "retrieve":
+            return TicketListSerializer
+
+        return TicketSerializer
+
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        if request.user.is_staff:
+            return super().list(request, *args, **kwargs)
+        else:
+            self.queryset = Ticket.objects.filter(order__user=request.user)
+            return super().list(request, *args, **kwargs)

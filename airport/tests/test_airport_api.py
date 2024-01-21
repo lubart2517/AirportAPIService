@@ -34,7 +34,7 @@ from airport.serializers import (
     FlightCrewMemberSerializer,
     FlightCrewMemberShortSerializer,
     OrderSerializer,
-    TicketSerializer,
+    TicketListSerializer,
 )
 
 AIRPORT_URL = reverse("airport:airport-list")
@@ -45,6 +45,7 @@ AIRPLANE_URL = reverse("airport:airplane-list")
 CREW_URL = reverse("airport:crew-list")
 FLIGHT_CREW_MEMBER_URL = reverse("airport:flightcrewmember-list")
 ORDER_URL = reverse("airport:order-list")
+TICKET_URL = reverse("airport:ticket-list")
 
 
 def sample_airport(**params):
@@ -772,3 +773,70 @@ class AdminOrderApiTests(TestCase):
         url = reverse("airport:order-detail", args=[new_order.id])
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+
+def sample_ticket(user=None, **params):
+    if not user:
+        order = sample_order()
+    else:
+        order = sample_order(user=user)
+    flight = sample_flight()
+    row = 1
+    seat = 1
+    defaults = {"order": order, "flight": flight, "row": row, "seat": seat}
+    defaults.update(params)
+
+    return Ticket.objects.create(**defaults)
+
+
+class UnauthenticatedTicketApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_auth_required_for_ticket_list(self):
+        response = self.client.get(TICKET_URL)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AuthenticatedTicketApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "test@test.com",
+            "testpass",
+        )
+        self.client.force_authenticate(self.user)
+
+    def test_list_tickets_empty(self):
+        sample_ticket()
+        response = self.client.get(TICKET_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_retrieve_ticket_detail(self):
+        new_ticket = sample_ticket(user=self.user)
+        url = reverse("airport:ticket-detail", args=[new_ticket.id])
+        response = self.client.get(url)
+        serializer = TicketListSerializer(new_ticket)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, serializer.data)
+
+    def test_create_ticket(self):
+        flight = sample_flight()
+        order = sample_order(user=self.user)
+        data = {
+            "row": 1,
+            "seat": 1,
+            "flight": flight.id,
+            "order": order.id,
+        }
+        response = self.client.post(TICKET_URL, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_ticket_validation_api(self):
+        data = {
+            "row": 0,
+            "seat": 4,
+        }
+        response = self.client.post(TICKET_URL, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

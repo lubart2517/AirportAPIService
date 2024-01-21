@@ -24,7 +24,11 @@ class IsAllowedToCreateOrAdmin(BasePermission):
         if request.method == "POST":
             return bool(request.user)
         else:
+            try:
+                user = obj.user
+            except AttributeError:
+                user = obj.order.user
             return bool(
                 request.user
-                and (obj.user == request.user or request.user.is_staff)
+                and (user == request.user or request.user.is_staff)
             )
