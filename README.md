@@ -64,3 +64,17 @@ Key project features
 3.	Creating airports, receiving airport routes
 4.	Adding flights, receiving crew members for each flight
 5.	Filtering flights, crews, flight_crew_members
+
+Database structure:
+![Db_schema.png](images%2FDb_schema.png)
+Screenshots of all endpoints:
+![Screenshot_1.jpg](images%2FScreenshot_1.jpg)
+![Screenshot_2.jpg](images%2FScreenshot_2.jpg)
+![Screenshot_3.jpg](images%2FScreenshot_3.jpg)
+![Screenshot_4.jpg](images%2FScreenshot_4.jpg)
+![Screenshot_5.jpg](images%2FScreenshot_5.jpg)
+![Screenshot_6.jpg](images%2FScreenshot_6.jpg)
+![Screenshot_7.jpg](images%2FScreenshot_7.jpg)
+![Screenshot_8.jpg](images%2FScreenshot_8.jpg)
+![Screenshot_9.jpg](images%2FScreenshot_9.jpg)
+![Screenshot_10.jpg](images%2FScreenshot_10.jpg)
